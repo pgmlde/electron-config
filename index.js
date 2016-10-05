@@ -6,13 +6,13 @@ class ElectronConfig extends Conf {
 	constructor(opts) {
 		opts = Object.assign({
 			name: 'config',
-			prefix: 'json'
+			extension: 'json'
 		}, opts);
 		opts.cwd = (electron.app || electron.remote.app).getPath('userData');
 		opts.configName = opts.name;
-		opts.configPrefix = opts.prefix;
+		opts.configExtension = opts.extension;
 		delete opts.name;
-		delete opts.prefix;
+		delete opts.extension;
 		super(opts);
 	}
 }
