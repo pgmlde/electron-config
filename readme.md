@@ -1,43 +1,47 @@
-# electron-config [![Build Status: Linux and macOS](https://travis-ci.org/sindresorhus/electron-config.svg?branch=master)](https://travis-ci.org/sindresorhus/electron-config) [![Build status: Windows](https://ci.appveyor.com/api/projects/status/m2m9o6gq77xxi2eg/branch/master?svg=true)](https://ci.appveyor.com/project/sindresorhus/electron-config/branch/master)
+# electron-store [![Build Status: Linux and macOS](https://travis-ci.org/sindresorhus/electron-store.svg?branch=master)](https://travis-ci.org/sindresorhus/electron-store) [![Build status: Windows](https://ci.appveyor.com/api/projects/status/m2m9o6gq77xxi2eg/branch/master?svg=true)](https://ci.appveyor.com/project/sindresorhus/electron-store/branch/master)
 
-> Simple config handling for your [Electron](http://electron.atom.io) app or module
+> Simple data persistence for your [Electron](https://electron.atom.io) app or module - Save and load user preferences, app state, cache, etc
 
-Electron doesn't have a built-in way to persist user settings and other data. This module handles that for you, so you can focus on building your app. Config is saved in a JSON file in [`app.getPath('userData')`](http://electron.atom.io/docs/api/app/#appgetpathname).
+Electron doesn't have a built-in way to persist user preferences and other data. This module handles that for you, so you can focus on building your app. The data is saved in a JSON file in [`app.getPath('userData')`](http://electron.atom.io/docs/api/app/#appgetpathname).
 
 You can use this module directly in both the main and renderer process.
+
+*[This project was recently renamed from `electron-config`.](https://github.com/sindresorhus/electron-store/issues/4)*
 
 
 ## Install
 
 ```
-$ npm install --save electron-config
+$ npm install electron-store
 ```
 
 
 ## Usage
 
 ```js
-const Config = require('electron-config');
-const config = new Config();
+const Store = require('electron-store');
+const store = new Store();
 
-config.set('unicorn', '🦄');
-console.log(config.get('unicorn'));
+store.set('unicorn', '🦄');
+console.log(store.get('unicorn'));
 //=> '🦄'
 
-// use dot-notation to access nested properties
-config.set('foo.bar', true);
-console.log(config.get('foo'));
+// Use dot-notation to access nested properties
+store.set('foo.bar', true);
+console.log(store.get('foo'));
 //=> {bar: true}
 
-config.delete('unicorn');
-console.log(config.get('unicorn'));
+store.delete('unicorn');
+console.log(store.get('unicorn'));
 //=> undefined
 ```
 
 
 ## API
 
-### Config([options])
+Changes are written to disk atomically, so if the process crashes during a write, it will not corrupt the existing config.
+
+### Store([options])
 
 Returns a new instance.
 
@@ -47,16 +51,38 @@ Returns a new instance.
 
 Type: `Object`
 
-Default config.
+Default data.
 
 #### name
 
 Type: `string`<br>
 Default: `config`
 
-Name of the config file (without extension).
+Name of the storage file (without extension).
 
-This is useful if you want multiple config files for your app. Or if you're making a reusable Electron module that persists some config, in which case you should **not** use the name `config`.
+This is useful if you want multiple storage files for your app. Or if you're making a reusable Electron module that persists some data, in which case you should **not** use the name `config`.
+
+#### cwd
+
+Type: `string`<br>
+Default: [`app.getPath('userData')`](http://electron.atom.io/docs/api/app/#appgetpathname)
+
+Storage file location. *Don't specify this unless absolutely necessary!*
+
+If a relative path, it's relative to the default cwd. For example, `{cwd: 'unicorn'}` would result in a storage file in `~/Library/Application Support/App Name/unicorn`.
+
+#### encryptionKey
+
+Type: `string` `Buffer` `TypedArray` `DataView`<br>
+Default: `undefined`
+
+Note that this is **not intended for security purposes**, since the encryption key would be easily found inside a plain-text Electron app.
+
+Its main use is for obscurity. If a user looks through the config directory and finds the config file, since it's just a JSON file, they may be tempted to modify it. By providing an encryption key, the file will be obfuscated, which should hopefully deter any users from doing so.
+
+It also has the added bonus of ensuring the config file's integrity. If the file is changed in any way, the decryption will not work, in which case the store will just reset back to its default state.
+
+When specified, the store will be encrypted using the [`aes-256-cbc`](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation) encryption algorithm.
 
 ### Instance
 
@@ -68,13 +94,15 @@ The instance is [`iterable`](https://developer.mozilla.org/en/docs/Web/JavaScrip
 
 Set an item.
 
+The `value` must be JSON serializable.
+
 #### .set(object)
 
 Set multiple items at once.
 
-#### .get(key)
+#### .get(key, [defaultValue])
 
-Get an item.
+Get an item or `defaultValue` if the item does not exist.
 
 #### .has(key)
 
@@ -88,13 +116,19 @@ Delete an item.
 
 Delete all items.
 
+#### .onDidChange(key, callback)
+
+`callback`: `(newValue, oldValue) => {}`
+
+Watches the given `key`, calling `callback` on any changes. When a key is first set `oldValue` will be `undefined`, and when a key is deleted `newValue` will be `undefined`.
+
 #### .size
 
 Get the item count.
 
 #### .store
 
-Get all the config as an object or replace the current config with an object:
+Get all the data as an object or replace the current data with an object:
 
 ```js
 conf.store = {
@@ -104,7 +138,16 @@ conf.store = {
 
 #### .path
 
-Get the path to the config file.
+Get the path to the storage file.
+
+#### .openInEditor()
+
+Open the storage file in the user's editor.
+
+
+## FAQ
+
+- [Advantages over `window.localStorage`](https://github.com/sindresorhus/electron-store/issues/17)
 
 
 ## Related
@@ -112,6 +155,7 @@ Get the path to the config file.
 - [electron-debug](https://github.com/sindresorhus/electron-debug) - Adds useful debug features to your Electron app
 - [electron-context-menu](https://github.com/sindresorhus/electron-context-menu) - Context menu for your Electron app
 - [electron-dl](https://github.com/sindresorhus/electron-dl) - Simplified file downloads for your Electron app
+- [electron-unhandled](https://github.com/sindresorhus/electron-unhandled) - Catch unhandled errors and promise rejections in your Electron app
 - [conf](https://github.com/sindresorhus/conf) - Simple config handling for your app or module
 
 

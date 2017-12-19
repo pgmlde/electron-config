@@ -1,5 +1,6 @@
 'use strict';
 const assert = require('assert');
+const path = require('path');
 const electron = require('electron');
 const Store = require('.');
 
@@ -9,17 +10,12 @@ process.on('uncaughtException', err => {
 	process.exit(1); // eslint-disable-line
 });
 
-const store = new Store({name: 'electron-store'});
+console.log(electron.app.getPath('userData'));
 
-store.set('unicorn', '🦄');
-assert.equal(store.get('unicorn'), '🦄');
-
-store.delete('unicorn');
-assert.equal(store.get('unicorn'), undefined);
-
-// To be checked in AVA
-store.set('ava', '🚀');
-
+const store = new Store({cwd: 'foo'});
 console.log(store.path);
+
+const store2 = new Store({cwd: path.join(__dirname, 'bar')});
+console.log(store2.path);
 
 electron.app.quit();
